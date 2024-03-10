@@ -33,8 +33,8 @@ import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBo
 
 import de.word_light.document_builder.documentBuilder.DocumentBuilder;
 import de.word_light.document_builder.documentBuilder.PictureUtils;
-import de.word_light.document_builder.documentParts.BasicParagraph;
-import de.word_light.document_builder.documentParts.DocumentWrapper;
+import de.word_light.document_builder.entites.documentParts.BasicParagraph;
+import de.word_light.document_builder.entites.documentParts.DocumentWrapper;
 import de.word_light.document_builder.exception.ApiException;
 import de.word_light.document_builder.exception.ApiExceptionFormat;
 import de.word_light.document_builder.exception.ApiExceptionHandler;

@@ -1,4 +1,4 @@
-package de.word_light.document_builder.entites;
+package de.word_light.document_builder.abstracts;
 
 import java.time.LocalDateTime;
 

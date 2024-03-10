@@ -1,7 +1,6 @@
-package de.word_light.document_builder.documentParts;
+package de.word_light.document_builder.entites.documentParts;
 
-import de.word_light.document_builder.entites.AbstractEntity;
-
+import de.word_light.document_builder.abstracts.AbstractEntity;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.Entity;
 import jakarta.validation.constraints.AssertTrue;

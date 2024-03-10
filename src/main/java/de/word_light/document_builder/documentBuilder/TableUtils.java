@@ -10,10 +10,9 @@ import org.apache.poi.xwpf.usermodel.XWPFParagraph;
 import org.apache.poi.xwpf.usermodel.XWPFTable;
 import org.apache.poi.xwpf.usermodel.XWPFTableCell;
 
-import de.word_light.document_builder.documentParts.BasicParagraph;
-import de.word_light.document_builder.documentParts.TableConfig;
-import de.word_light.document_builder.documentParts.style.Style;
-
+import de.word_light.document_builder.entites.documentParts.BasicParagraph;
+import de.word_light.document_builder.entites.documentParts.TableConfig;
+import de.word_light.document_builder.entites.documentParts.style.Style;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.log4j.Log4j2;

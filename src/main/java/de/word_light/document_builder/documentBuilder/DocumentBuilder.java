@@ -33,9 +33,10 @@ import org.openxmlformats.schemas.wordprocessingml.x2006.main.STSectionMark;
 import com.documents4j.api.DocumentType;
 import com.documents4j.api.IConverter;
 import com.documents4j.job.LocalConverter;
-import de.word_light.document_builder.documentParts.BasicParagraph;
-import de.word_light.document_builder.documentParts.TableConfig;
-import de.word_light.document_builder.documentParts.style.Style;
+
+import de.word_light.document_builder.entites.documentParts.BasicParagraph;
+import de.word_light.document_builder.entites.documentParts.TableConfig;
+import de.word_light.document_builder.entites.documentParts.style.Style;
 import de.word_light.document_builder.exception.ApiException;
 import de.word_light.document_builder.exception.ApiExceptionHandler;
 import de.word_light.document_builder.utils.Utils;
