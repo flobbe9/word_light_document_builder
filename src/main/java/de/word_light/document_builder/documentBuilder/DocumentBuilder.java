@@ -790,6 +790,7 @@ public class DocumentBuilder {
      * @throws ApiException
      */
     @NonNull
+    // TODO: not tested extensively (styles, tables, images etc)
     public static File docxToPdfLibreOffice(@NonNull File docxFile, @Nullable String pdfFileName) {
         assertArgsNotNullAndNotBlankOrThrow(docxFile);
 
