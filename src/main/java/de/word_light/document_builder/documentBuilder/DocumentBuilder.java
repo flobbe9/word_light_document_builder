@@ -2,6 +2,9 @@ package de.word_light.document_builder.documentBuilder;
 
 import static de.word_light.document_builder.utils.Utils.DOCX_FOLDER;
 import static de.word_light.document_builder.utils.Utils.PDF_FOLDER;
+import static de.word_light.document_builder.utils.Utils.assertArgsNotNullAndNotBlankOrThrow;
+import static de.word_light.document_builder.utils.Utils.awaitOrThrow;
+import static de.word_light.document_builder.utils.Utils.isLinuxOs;
 import static de.word_light.document_builder.utils.Utils.prependSlash;
 
 import java.io.File;
@@ -29,6 +32,8 @@ import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTSectType;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTTabStop;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.STPageOrientation;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.STSectionMark;
+import org.springframework.boot.info.OsInfo;
+import org.springframework.lang.NonNull;
 
 import com.documents4j.api.DocumentType;
 import com.documents4j.api.IConverter;
@@ -670,7 +675,6 @@ public class DocumentBuilder {
      * @return XWPFDocument of the file or an empty one in case of exception
      */
     XWPFDocument readDocxFile(String fileName) {
-
         log.info("Starting to read .docx file...");
 
         try {
@@ -695,7 +699,6 @@ public class DocumentBuilder {
      * @return the .docx file
      */
     public File writeDocxFile() {
-
         log.info("Writing .docx file...");
 
         String completeFileName = DOCX_FOLDER + prependSlash(this.docxFileName);
@@ -729,8 +732,8 @@ public class DocumentBuilder {
      * @throws ApiException
      */
     public static File docxToPdfDocuments4j(InputStream docxInputStream, String pdfFileName) {
-
         log.info("Converting .docx to .pdf...");
+        log.debug("Using documents4j");
         
         try (OutputStream os = new FileOutputStream(PDF_FOLDER + prependSlash(pdfFileName))) {
             IConverter converter = LocalConverter.builder().build();
@@ -765,12 +768,67 @@ public class DocumentBuilder {
      * @throws ApiException if docxFile cannot be found
      */
     public static File docxToPdfDocuments4j(File docxFile, String pdfFileName) {
-
         try {
             return docxToPdfDocuments4j(new FileInputStream(docxFile), pdfFileName);
 
         } catch (IOException e) {
             throw new ApiException("Failed to convert .docx to .pdf.", e);
+        }
+    }
+
+    /**
+     * Convert given docx to pdf executing a libreoffice command. Depends on libreoffice beeing installed (apk update;apk add libreoffice;).<p>
+     * 
+     * NOTE: had these commands in mind as well: <p>
+     * libreoffice --headless --infilter=76 --convert-to pdf document1.docx --outdir pdf1.pdf
+     * libreoffice --headless env:UserInstallation=file:///tmp/LibreOffice_Conversion_root --convert-to pdf:writer_pdf_Export document1.docx --outdir pdf1.pdf
+     * 
+     * @param docxFile
+     * @param pdfFileName
+     * @return an existing pdf file
+     * @throws IllegalArgumentException
+     * @throws ApiException
+     */
+    @NonNull
+    public static File docxToPdfLibreOffice(@NonNull File docxFile, @Nullable String pdfFileName) {
+        assertArgsNotNullAndNotBlankOrThrow(docxFile);
+
+        log.info("Converting docx to pdf...");
+        log.debug("Using libreoffice");
+
+        if (!isLinuxOs())
+            throw new IllegalArgumentException("Cannot convert pdfs using libreOffice on '%s' OS".formatted(new OsInfo().getName()));
+
+        // TODO: use regex constant
+        // if (!isDocxFile(docxFile.getName()))
+        //     throw new IllegalArgumentException("Can only convert '.docx' files to pdf, got: '%s'".formatted(docxFile.getName()));
+
+        try {
+            // generate pdf
+            Runtime.getRuntime().exec("libreoffice --headless --infilter=76 --convert-to pdf " + docxFile.getPath() + " --outdir " + PDF_FOLDER);
+            
+            // wait for pdf to be generated
+            String pdfFileNameAndPathLibreoffice = PDF_FOLDER + "/" + docxFile.getName().replace(".docx", ".pdf");
+            File pdfFileLibreoffice = new File(pdfFileNameAndPathLibreoffice);
+            log.debug("Convert {} to {}", docxFile.getPath(), pdfFileNameAndPathLibreoffice);
+            awaitOrThrow(() -> pdfFileLibreoffice.exists(), 20_000);
+
+            // prepare pdf file name
+            if (StringUtils.isBlank(pdfFileName))
+                pdfFileName = docxFile.getName();
+
+            String pdfFilePathAndName = PDF_FOLDER + "/" + pdfFileName;
+
+            if (!pdfFilePathAndName.endsWith(".pdf"))
+                pdfFilePathAndName += ".pdf";
+
+            log.debug("rename to {}", pdfFilePathAndName);
+            File pdfFile = new File(pdfFilePathAndName);
+            pdfFileLibreoffice.renameTo(pdfFile);
+        
+            return pdfFile;
+        } catch (Exception e) {
+            throw new IllegalStateException(e);
         }
     }
 }

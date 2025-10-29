@@ -2,6 +2,7 @@ package de.word_light.document_builder.controllers;
 
 import static de.word_light.document_builder.utils.Utils.PICTURES_FOLDER;
 import static de.word_light.document_builder.utils.Utils.prependSlash;
+import static org.springframework.http.HttpStatus.NOT_IMPLEMENTED;
 import static org.springframework.http.HttpStatus.OK;
 import static org.springframework.http.HttpStatus.UNPROCESSABLE_ENTITY;
 
@@ -10,11 +11,11 @@ import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
-import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.info.OsInfo;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.web.csrf.CsrfToken;
@@ -23,7 +24,6 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -39,7 +39,6 @@ import de.word_light.document_builder.exception.ApiException;
 import de.word_light.document_builder.exception.ApiExceptionFormat;
 import de.word_light.document_builder.exception.ApiExceptionHandler;
 import de.word_light.document_builder.utils.Utils;
-
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -65,8 +64,6 @@ public class DocumentController {
 
     private DocumentWrapper documentWrapper = new DocumentWrapper();
 
-    private File file;
-
 
     /**
      * Builds word document, writes to .docx file. <p>
@@ -76,65 +73,47 @@ public class DocumentController {
      * last {@link BasicParagraph} is the footer <p>
      * anything in between is main content <p>.
      * 
-     * @param documentWrapper wrapper object containing all document information
-     * @param bindingResult for handling bad requests
+     * Clears {@code this.documentWrapper.getPictures()} after download (successful or not).
+     * 
+     * @param file to download
+     * @param fileName to use for downloaded file
+     * @return {@link StreamingResponseBody} of file with correct headers for download
      */
-    @PostMapping("/buildAndWrite")
-    @Operation(summary = "Build document and write to .docx.")
-    public ApiExceptionFormat buildAndWrite(@RequestBody @Valid DocumentWrapper wrapper, BindingResult bindingResult, @RequestHeader Map<String, String> headers) {
-
+    @PostMapping(path = "/buildAndDownload", produces = {"application/octet-stream", "application/json"})
+    @Operation(summary = "Write given wrapper to .docx, optionally convert to pdf and then download the file")
+    public ResponseEntity<StreamingResponseBody> buildAndDownload(
+        @RequestParam("pdf") boolean pdf,
+        @RequestBody @Valid DocumentWrapper wrapper, BindingResult bindingResult
+    ) {
         // pictures may have been uploaded before
         wrapper.setPictures(this.documentWrapper.getPictures());
 
         this.documentWrapper = wrapper;
 
         // build docx
-        File file = buildAndWriteDocument();
+        AtomicReference<File> file = new AtomicReference<>(buildAndWriteDocument());
 
-        this.file = file;
-
-        return ApiExceptionHandler.returnPrettySuccess(OK);
-    }
-
-
-    /**
-     * Convert given file to stream and delete file afterwards.<p>
-     * 
-     * Deletes {@link #file} and clears {@code this.documentWrapper.getPictures()} after download (successful or not).
-     * 
-     * @param file to download
-     * @param fileName to use for downloaded file
-     * @return {@link StreamingResponseBody} of file with correct headers for download
-     */
-    @PostMapping(path = "/download", produces = {"application/octet-stream", "application/json"})
-    @Operation(summary = "Download existing .docx or .pdf file. Needs a call to '/buildAndWrite' first.")
-    public ResponseEntity<StreamingResponseBody> downloadDocument(@RequestParam(name = "pdf") boolean pdf) {
-
-        log.info("Downloading document...");
-
-        // case: no document created yet
-        if (this.documentWrapper == null || this.file == null || !this.file.exists()) 
-            throw new ApiException(HttpStatus.CONFLICT, "Failed to download document. No document created yet.");
-        
         // INFO: disabled in prod until I find a way to install ms word on linux
         // case: pdf
         if (pdf && !ENV.equals("prod"))
-            file = convertDocxToPdf(file);
+            file.set(convertDocxToPdf(file.get()));
+
+        log.info("downloading file {}", file.get().getPath());
 
         try {
             return ResponseEntity.ok()
-                                .headers(getDownloadHeaders(this.documentWrapper.getFileName()))
-                                .contentLength(file.length())
-                                .contentType(MediaType.parseMediaType("application/octet-stream"))
-                                .body(os -> {
-                                    try {
-                                        Files.copy(file.toPath(), os);
+                .headers(getDownloadHeaders(file.get().getName()))
+                .contentLength(file.get().length())
+                .contentType(MediaType.parseMediaType("application/octet-stream"))
+                .body(os -> {
+                    try {
+                        Files.copy(file.get().toPath(), os);
 
-                                    } finally {
-                                        file.delete();
-                                        this.documentWrapper.getPictures().clear();
-                                    }
-                                });
+                    } finally {
+                        file.get().delete();
+                        this.documentWrapper.getPictures().clear();
+                    }
+                });
 
         } finally {
             log.info("Download finished");
@@ -150,7 +129,6 @@ public class DocumentController {
     @PostMapping(path = "/uploadPicture", consumes = "multipart/form-data")
     @Operation(summary = "Upload a picture as multipart file to filesystem in backend.")
     public ApiExceptionFormat uploadFile(@RequestBody @NotNull(message = "Failed to upload picture. 'file' cannot be null.") MultipartFile picture) {
-
         log.info("Starting to upload files...");
 
         String fileName = picture.getOriginalFilename();
@@ -199,26 +177,25 @@ public class DocumentController {
         return csrfToken == null ? "" : csrfToken.getToken();
     }
 
-
     /**
      * Build document with {@code this.documentWrapper} and write to file
      * 
      * @return generated .docx file
      */
     private File buildAndWriteDocument() {
-
-        DocumentBuilder documentBuilder = new DocumentBuilder(this.documentWrapper.getContent(), 
-                                                                this.documentWrapper.getFileName(), 
-                                                                this.documentWrapper.getNumColumns(),
-                                                                this.documentWrapper.getNumSingleColumnLines(),
-                                                                this.documentWrapper.isLandscape(),
-                                                                this.documentWrapper.getPictures(),
-                                                                this.documentWrapper.getTableConfigs());
+        DocumentBuilder documentBuilder = new DocumentBuilder(
+            this.documentWrapper.getContent(), 
+            this.documentWrapper.getFileName(), 
+            this.documentWrapper.getNumColumns(),
+            this.documentWrapper.getNumSingleColumnLines(),
+            this.documentWrapper.isLandscape(),
+            this.documentWrapper.getPictures(),
+            this.documentWrapper.getTableConfigs()
+        );
         
         // build
         return documentBuilder.build().writeDocxFile();
     }
-
 
     /**
      * Convert given '.docx' file to pdf.
@@ -226,12 +203,16 @@ public class DocumentController {
      * @param docxFile ending on '.docx' to convert to '.pdf'
      */
     private File convertDocxToPdf(File docxFile) {
-
         String pdfFileName = docxFile.getName();
 
-        return DocumentBuilder.docxToPdfDocuments4j(docxFile, pdfFileName);
-    }
+        if (Utils.isWindowsOs()) {
+            return DocumentBuilder.docxToPdfDocuments4j(docxFile, pdfFileName);
 
+        } else if (Utils.isLinuxOs())
+            return DocumentBuilder.docxToPdfLibreOffice(docxFile, pdfFileName);
+
+        throw new ApiException(NOT_IMPLEMENTED, "No pdf converter implemented for current OS '%s'".formatted(new OsInfo().getName()));
+    }
 
     /**
      * Create http headers for the download request.
@@ -240,7 +221,6 @@ public class DocumentController {
      * @return {@link HttpHeaders} object.
      */
     private HttpHeaders getDownloadHeaders(String fileName) {
-
         HttpHeaders header = new HttpHeaders();
 
         header.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + fileName);

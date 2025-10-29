@@ -42,3 +42,14 @@ spring:
         # console: 
         #     enabled: true
         #     path: /h2
+    output:
+        # colored terminal
+        ansi:
+            enabled: ALWAYS
+
+logging:
+    # NONE | FATAL | ERROR | INFO | DEBUG | TRACE
+    level:
+        de:
+            word_light:
+                document_builder: ${LOG_LEVEL}
