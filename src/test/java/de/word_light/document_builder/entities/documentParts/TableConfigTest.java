@@ -1,10 +1,12 @@
-package de.word_light.document_builder.documentParts;
+package de.word_light.document_builder.entities.documentParts;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
+import de.word_light.document_builder.entites.documentParts.TableConfig;
 
 
 /**

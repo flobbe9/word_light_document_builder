@@ -14,16 +14,22 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.Set;
+import java.util.concurrent.Callable;
+import java.util.concurrent.TimeoutException;
 
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.boot.info.OsInfo;
+import org.springframework.lang.NonNull;
 import org.springframework.lang.Nullable;
 
-import de.word_light.document_builder.abstracts.FileDeletionCondition;
-import de.word_light.document_builder.exception.ApiException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 
+import de.word_light.document_builder.abstracts.FileDeletionCondition;
+import de.word_light.document_builder.exception.ApiException;
 import lombok.extern.log4j.Log4j2;
 
 
@@ -336,5 +342,89 @@ public class Utils {
         } catch (DateTimeException e) {
             return null;
         }
+    }
+
+    /**
+     * Ci indicates that the app is running inside a pipeline or similar. Expect "CI" variable to be defined
+     * either as application.property or inside an .env file different then the main ".env".
+     * 
+     * @return {@code true} or {@code false} (default)
+     */
+    public static boolean isCI() {
+        return System.getProperty("CI", "false").equals("true");
+    }
+
+    public static boolean isWindowsOs() {
+        return StringUtils.containsIgnoreCase(new OsInfo().getName(), "windows");
+    }
+    
+    public static boolean isLinuxOs() {
+        return StringUtils.containsIgnoreCase(new OsInfo().getName(), "linux");
+    }
+
+    /**
+     * Wont throw if given args itself is {@code null}. 
+     * 
+     * @param args to check
+     * @throws IllegalArgumentException
+     */
+    public static void assertArgsNotNullAndNotBlankOrThrow(Object ...args) throws IllegalArgumentException {
+        if (args == null)
+            return;
+
+        for (int i = 0; i < args.length; i++) 
+            if (assertNullOrBlank(args[i]))
+                throw new IllegalArgumentException("Mehtod arg null or blank at index " + i);
+    }
+    
+
+    /**
+     * @param args to check
+     * @return {@code true} if at least one arg is {@code null} or blank (will stop iterating), else {@code false}
+     */
+    public static boolean assertArgsNullOrBlank(Object ...args) throws IllegalArgumentException {
+        if (args == null)
+            return true;
+
+        for (int i = 0; i < args.length; i++) 
+            if (assertNullOrBlank(args[i]))
+                return true;
+
+        return false;
+    }
+
+    /**
+     * @param obj to check
+     * @return {@code true} if given {@code obj} is either {@code null} or (if instance of String) {@link #isBlank(String)}, else {@code false}
+     */
+    public static boolean assertNullOrBlank(Object obj) {
+        if (obj == null)
+            return true;
+
+        if (obj instanceof String)
+            return StringUtils.isBlank((String) obj);
+
+        return false;
+    }
+
+    /**
+     * Keep calling {@code condition} callback until it is {@code true} or the {@code waitDuration} is reached.
+     * 
+     * @param condition
+     * @param waitDuration in ms
+     * @return
+     * @throws Exception if condition throws
+     * @throws TimeoutException if {@code waitDuration} is reached before condition was {@code true}
+     */
+    public static boolean awaitOrThrow(@NonNull Callable<Boolean> condition, int waitDuration) throws Exception {
+        assertArgsNotNullAndNotBlankOrThrow(condition);
+
+        Date futureDate = new Date((long) new Date().getTime() + waitDuration);
+
+        while (new Date().before(futureDate))
+            if (condition.call())
+                return true;
+
+        throw new TimeoutException("Timeout of '%sms' exceeded for awaiting condition".formatted(waitDuration));
     }
 }

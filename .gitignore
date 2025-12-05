@@ -40,3 +40,4 @@ out/
 ### Other ###
 *.md
 .env.local
+ssl

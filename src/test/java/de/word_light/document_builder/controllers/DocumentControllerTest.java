@@ -18,10 +18,10 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 
-import de.word_light.document_builder.documentParts.BasicParagraph;
-import de.word_light.document_builder.documentParts.DocumentWrapper;
-import de.word_light.document_builder.documentParts.TableConfig;
-import de.word_light.document_builder.documentParts.style.Style;
+import de.word_light.document_builder.entites.documentParts.BasicParagraph;
+import de.word_light.document_builder.entites.documentParts.DocumentWrapper;
+import de.word_light.document_builder.entites.documentParts.TableConfig;
+import de.word_light.document_builder.entites.documentParts.style.Style;
 import de.word_light.document_builder.utils.TestUtils;
 import de.word_light.document_builder.utils.Utils;
 import static de.word_light.document_builder.utils.Utils.DOCX_FOLDER;

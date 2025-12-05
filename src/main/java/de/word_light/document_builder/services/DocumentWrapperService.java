@@ -6,7 +6,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.validation.annotation.Validated;
 
-import de.word_light.document_builder.documentParts.DocumentWrapper;
+import de.word_light.document_builder.abstracts.AbstractService;
+import de.word_light.document_builder.entites.documentParts.DocumentWrapper;
 import de.word_light.document_builder.exception.ApiException;
 import de.word_light.document_builder.repositories.DocumentWrapperRepository;
 import jakarta.validation.constraints.NotBlank;

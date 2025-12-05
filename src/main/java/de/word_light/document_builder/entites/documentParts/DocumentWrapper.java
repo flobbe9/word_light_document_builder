@@ -1,4 +1,4 @@
-package de.word_light.document_builder.documentParts;
+package de.word_light.document_builder.entites.documentParts;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -7,9 +7,8 @@ import java.util.Map;
 
 import org.springframework.lang.Nullable;
 
+import de.word_light.document_builder.abstracts.AbstractEntity;
 import de.word_light.document_builder.documentBuilder.TableUtils;
-import de.word_light.document_builder.entites.AbstractEntity;
-
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;

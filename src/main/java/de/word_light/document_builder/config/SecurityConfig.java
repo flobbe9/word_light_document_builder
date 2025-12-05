@@ -46,7 +46,7 @@ public class SecurityConfig {
     @Bean
     SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         
-        // enable csrf in prod onlye
+        // enable csrf in prod only
         if (!this.ENV.equalsIgnoreCase("prod"))
             http.csrf(csrf -> csrf.disable());
         
