@@ -1,10 +1,12 @@
-name: word-light_document_builder main
+name: word-light_document_builder
 
 run-name: ${{ github.event.head_commit.message }}
 on: 
-  push: 
+  workflow_dispatch:
+  push:
     branches:
-      - main
+        - dev
+  
 
 jobs:
   build:
@@ -23,6 +25,8 @@ jobs:
       - run: gradle clean build
   
   push_to_Dockerhub:
+    # NOTE: ${{}} syntax does not work here
+    if: (github.head_ref || github.ref_name) == 'main'
     runs-on: ubuntu-latest
     needs: build
 
@@ -46,6 +50,8 @@ jobs:
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/word_light_document_builder:latest
 
   deploy_to_server:
+    # NOTE: ${{}} syntax does not work here 
+    if: (github.head_ref || github.ref_name) == 'main'
     runs-on: ubuntu-latest
     needs: push_to_Dockerhub
 
