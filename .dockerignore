@@ -2,9 +2,6 @@
 .gradle/
 build/
 bin/
-gradle/
-gradlew
-gradlew.bat
 
 ### VS Code ###
 .vscode/

@@ -1,11 +1,10 @@
-package de.word_light.document_builder.documentParts.style;
+package de.word_light.document_builder.entites.documentParts.style;
 
 import org.apache.poi.xwpf.usermodel.BreakType;
 import org.apache.poi.xwpf.usermodel.ParagraphAlignment;
 import org.springframework.lang.Nullable;
 
-import de.word_light.document_builder.entites.AbstractEntity;
-
+import de.word_light.document_builder.abstracts.AbstractEntity;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;

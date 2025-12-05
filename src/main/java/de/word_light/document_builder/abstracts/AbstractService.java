@@ -1,10 +1,9 @@
-package de.word_light.document_builder.services;
+package de.word_light.document_builder.abstracts;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
-import de.word_light.document_builder.entites.AbstractEntity;
 import de.word_light.document_builder.exception.ApiException;
 import de.word_light.document_builder.repositories.Dao;
 

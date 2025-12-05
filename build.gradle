@@ -5,7 +5,7 @@ plugins {
 }
 
 group = 'de.word_light'
-version = '0.1.0'
+version = '0.1.1'
 
 java {
 	sourceCompatibility = '17'
@@ -43,10 +43,12 @@ dependencies {
     // lombok
 	compileOnly 'org.projectlombok:lombok'
 	annotationProcessor 'org.projectlombok:lombok'
+    testCompileOnly 'org.projectlombok:lombok'
 
     // db
-	runtimeOnly 'com.h2database:h2'
-	runtimeOnly 'com.mysql:mysql-connector-j'
+    // for ci testing
+	testRuntimeOnly 'com.h2database:h2'
+    runtimeOnly 'com.mysql:mysql-connector-j'
 
     // test
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
@@ -58,9 +60,13 @@ tasks.named('test') {
 	useJUnitPlatform()
 }
 
-// bootRun {
-//     jvmArgs([
-//         "-Xms256m",
-//         "-Xmx512m"
-//     ])
-// }
+test {
+    // show application logs (like runtime logs) during tests
+    testLogging {
+        showStandardStreams = true
+    }
+
+    // use arg "-Pci"
+    if (project.hasProperty("ci"))
+        systemProperty 'CI', 'true';
+}

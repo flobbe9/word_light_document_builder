@@ -1,4 +1,4 @@
-package de.word_light.document_builder.documentParts;
+package de.word_light.document_builder.entities.documentParts;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -12,7 +12,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.TestInstance.Lifecycle;
 
-import de.word_light.document_builder.documentParts.style.Style;
+import de.word_light.document_builder.entites.documentParts.BasicParagraph;
+import de.word_light.document_builder.entites.documentParts.DocumentWrapper;
+import de.word_light.document_builder.entites.documentParts.TableConfig;
+import de.word_light.document_builder.entites.documentParts.style.Style;
 
 
 /**

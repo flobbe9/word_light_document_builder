@@ -1,8 +1,7 @@
-package de.word_light.document_builder.documentParts;
+package de.word_light.document_builder.entites.documentParts;
 
-import de.word_light.document_builder.documentParts.style.Style;
-import de.word_light.document_builder.entites.AbstractEntity;
-
+import de.word_light.document_builder.abstracts.AbstractEntity;
+import de.word_light.document_builder.entites.documentParts.style.Style;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
 import jakarta.persistence.JoinColumn;

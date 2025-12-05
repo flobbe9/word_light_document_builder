@@ -39,9 +39,9 @@ import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
-import de.word_light.document_builder.documentParts.BasicParagraph;
-import de.word_light.document_builder.documentParts.TableConfig;
-import de.word_light.document_builder.documentParts.style.Style;
+import de.word_light.document_builder.entites.documentParts.BasicParagraph;
+import de.word_light.document_builder.entites.documentParts.TableConfig;
+import de.word_light.document_builder.entites.documentParts.style.Style;
 import de.word_light.document_builder.exception.ApiException;
 import de.word_light.document_builder.utils.Utils;
 
