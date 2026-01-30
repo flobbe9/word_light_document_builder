@@ -128,10 +128,12 @@ public class DocumentController {
      */
     @PostMapping(path = "/uploadPicture", consumes = "multipart/form-data")
     @Operation(summary = "Upload a picture as multipart file to filesystem in backend.")
-    public ApiExceptionFormat uploadFile(@RequestBody @NotNull(message = "Failed to upload picture. 'file' cannot be null.") MultipartFile picture) {
+    public ApiExceptionFormat uploadFile(@RequestParam("picture") @NotNull(message = "Failed to upload picture. 'file' cannot be null.") MultipartFile picture) {
         log.info("Starting to upload files...");
 
         String fileName = picture.getOriginalFilename();
+        log.debug("Uploading file {}", fileName);
+
         // case: not a picture
         if (PictureUtils.getPictureType(fileName) == null) 
             throw new ApiException(UNPROCESSABLE_ENTITY, "Failed to upload picture. File " + fileName + " is not recognized as picture.");
@@ -215,7 +217,8 @@ public class DocumentController {
     }
 
     /**
-     * Create http headers for the download request.
+     * Create http headers for the download request. These make sure the file name is passed correctly and that the browser
+     * is downloading the file instead of trying to display it. 
      * 
      * @param fileName to use for the downloaded file.
      * @return {@link HttpHeaders} object.
