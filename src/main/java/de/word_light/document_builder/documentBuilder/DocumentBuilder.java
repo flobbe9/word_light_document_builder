@@ -292,13 +292,11 @@ public class DocumentBuilder {
      * @since latest
      */
     private DocumentBuilder addAutoHyphenation() {
-        POIXMLDocumentPart part = null;
-        for (int i = 0; i < this.document.getRelations().size(); i++) {
-            if (part instanceof XWPFSettings) {
-                part = this.document.getRelations().get(i);
-                break;
-            }
-        }
+        POIXMLDocumentPart part = this.document.getRelations()
+            .stream()
+            .filter(relation -> relation instanceof XWPFSettings)
+            .findFirst()
+            .orElse(null);
 
         // case: failed to find settings
         if (part == null) {
@@ -830,7 +828,7 @@ public class DocumentBuilder {
 
         try {
             // generate pdf
-            Runtime.getRuntime().exec("libreoffice --headless --infilter=76 --convert-to pdf " + docxFile.getPath() + " --outdir " + PDF_FOLDER);
+            Runtime.getRuntime().exec(new String[] {"libreoffice", "--headless", "--infilter=76", "--convert-to", "pdf", docxFile.getPath(), " --outdir ", PDF_FOLDER});
             
             // wait for pdf to be generated
             String pdfFileNameAndPathLibreoffice = PDF_FOLDER + "/" + docxFile.getName().replace(".docx", ".pdf");
