@@ -107,7 +107,6 @@ public class TestUtils {
      * @param status http status to assert
      */
     public static void checkApiExceptionFormatPrettySuccess(String jsonResponse, HttpStatus status) {
-
         assertTrue(jsonResponse.contains("\"error\":null"));
 
         // modify response for the sake of check method
