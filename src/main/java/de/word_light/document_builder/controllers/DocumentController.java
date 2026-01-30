@@ -11,6 +11,7 @@ import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -19,7 +20,6 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.web.csrf.CsrfToken;
-import org.springframework.validation.BindingResult;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -75,15 +75,15 @@ public class DocumentController {
      * 
      * Clears {@code this.documentWrapper.getPictures()} after download (successful or not).
      * 
-     * @param file to download
-     * @param fileName to use for downloaded file
+     * @param pdf optional. Set to {@code true} in order to convert the generated document to pdf
+     * @param wrapper to use for downloaded file
      * @return {@link StreamingResponseBody} of file with correct headers for download
      */
     @PostMapping(path = "/buildAndDownload", produces = {"application/octet-stream", "application/json"})
     @Operation(summary = "Write given wrapper to .docx, optionally convert to pdf and then download the file")
     public ResponseEntity<StreamingResponseBody> buildAndDownload(
-        @RequestParam("pdf") boolean pdf,
-        @RequestBody @Valid DocumentWrapper wrapper, BindingResult bindingResult
+        @RequestParam("pdf") Optional<Boolean> pdf,
+        @RequestBody @Valid DocumentWrapper wrapper
     ) {
         // pictures may have been uploaded before
         wrapper.setPictures(this.documentWrapper.getPictures());
@@ -93,9 +93,8 @@ public class DocumentController {
         // build docx
         AtomicReference<File> file = new AtomicReference<>(buildAndWriteDocument());
 
-        // INFO: disabled in prod until I find a way to install ms word on linux
         // case: pdf
-        if (pdf && !ENV.equals("prod"))
+        if (pdf.orElse(false))
             file.set(convertDocxToPdf(file.get()));
 
         log.info("downloading file {}", file.get().getPath());

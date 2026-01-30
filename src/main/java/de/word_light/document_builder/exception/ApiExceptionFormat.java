@@ -10,7 +10,6 @@ package de.word_light.document_builder.exception;
  * @since 0.0.1
  */
 public record ApiExceptionFormat(
-
     int status,
 
     String error,
