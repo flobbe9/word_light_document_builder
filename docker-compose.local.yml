@@ -3,17 +3,16 @@ version: "3.9"
 # inside dev or stage branch
 services:
   api:
-    depends_on: 
-      - db
+    # depends_on: # no longer depends on db, uses h2 in memory instead
+    #   - db
     build: .
-    container_name: api
     ports: 
         - ${PORT}:${PORT}
-    environment:
-      - SPRING_DATASOURCE_URL=jdbc:mysql://db:${DB_PORT}/${DB_NAME}
-      - SPRING_DATASOURCE_USERNAME=${SPRING_DATASOURCE_USERNAME}
-      - SPRING_DATASOURCE_PASSWORD=${SPRING_DATASOURCE_PASSWORD}
-      - SPRING_JPA_HIBERNATE_DDL_AUTO=${SPRING_JPA_HIBERNATE_DDL_AUTO}
+    # environment:
+      # - SPRING_DATASOURCE_URL=jdbc:mysql://db:${DB_PORT}/${DB_NAME}
+      # - SPRING_DATASOURCE_USERNAME=${SPRING_DATASOURCE_USERNAME}
+      # - SPRING_DATASOURCE_PASSWORD=${SPRING_DATASOURCE_PASSWORD}
+      # - SPRING_JPA_HIBERNATE_DDL_AUTO=${SPRING_JPA_HIBERNATE_DDL_AUTO}
   
   db:
     image: mariadb:11.8.5

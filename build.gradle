@@ -49,14 +49,14 @@ dependencies {
     testCompileOnly 'org.projectlombok:lombok'
 
     // db
-    // for ci testing
-	testRuntimeOnly 'com.h2database:h2'
-    runtimeOnly 'org.mariadb.jdbc:mariadb-java-client'
+	runtimeOnly 'com.h2database:h2'
+    // runtimeOnly 'org.mariadb.jdbc:mariadb-java-client'
 
     // test
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'io.projectreactor:reactor-test'
     testImplementation 'org.springframework.security:spring-security-test'
+	testAnnotationProcessor 'org.projectlombok:lombok'
 }
 
 tasks.named('test') {
