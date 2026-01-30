@@ -13,22 +13,26 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.lang.reflect.Field;
 import java.math.BigInteger;
 import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.poi.common.usermodel.PictureType;
+import org.apache.poi.ooxml.POIXMLDocumentPart;
 import org.apache.poi.wp.usermodel.HeaderFooterType;
 import org.apache.poi.xwpf.usermodel.UnderlinePatterns;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.apache.poi.xwpf.usermodel.XWPFParagraph;
 import org.apache.poi.xwpf.usermodel.XWPFRun;
+import org.apache.poi.xwpf.usermodel.XWPFSettings;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTBody;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTPageMar;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTPageSz;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTSectPr;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTSectType;
+import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTSettings;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTTabStop;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.STPageOrientation;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.STSectionMark;
@@ -134,7 +138,6 @@ public class DocumentBuilder {
      * @see PictureType for allowed formats
      */
     public DocumentBuilder(List<BasicParagraph> content, String docxFileName, int numColumns, int numSingleColumnLines, boolean landscape, Map<String, byte[]> pictures) {
-
         this.content = content;
         this.docxFileName = Utils.prependDateTime(docxFileName);
         this.pictureUtils = new PictureUtils(pictures);
@@ -143,7 +146,6 @@ public class DocumentBuilder {
         this.numSingleColumnLines = numSingleColumnLines;
         this.document = new XWPFDocument();
     }
-
 
     /**
      * Reading the an empty document from an existing file.<p>
@@ -159,7 +161,6 @@ public class DocumentBuilder {
      * @see PictureType for allowed formats    
      */
     public DocumentBuilder(List<BasicParagraph> content, String docxFileName, int numColumns, int numSingleColumnLines, boolean landscape, Map<String, byte[]> pictures, List<TableConfig> tableConfigs) {
-
         this.content = content;
         this.docxFileName = Utils.prependDateTime(docxFileName);
         this.pictureUtils = new PictureUtils(pictures);
@@ -170,7 +171,6 @@ public class DocumentBuilder {
         this.tableUtils = !tableConfigs.isEmpty() ? new TableUtils(this.document, tableConfigs) : null;
     }
 
-
     /**
      * Builds a the document with given list of {@link BasicParagraph}s and writes it to a .docx file which will
      * be located in the {@link #DOCX_FOLDER}.<p>
@@ -178,12 +178,13 @@ public class DocumentBuilder {
      * Configure document settings before adding content.
      */
     public DocumentBuilder build() {
-        
         setOrientation();
 
         setDocumentMargins(MINIMUM_MARGIN_TOP, null, MINIMUM_MARGIN_BOTTOM, null);
 
         setIsTabStopsByFontSize(true);
+
+        addAutoHyphenation();
         
         addContent();
 
@@ -276,6 +277,49 @@ public class DocumentBuilder {
 
         if (left != null) 
             pageMar.setLeft(BigInteger.valueOf(left));
+
+        return this;
+    }
+
+    /**
+     * Make sure that hyphens are configured automatically by word. This will make paragraph justification (align "BOTH") look better.<p>
+     *  
+     * This setting can be escaped for single paragraphs: {@code xwpfParagraph.getCTP().addNewPPr().addNewSuppressAutoHyphens();}<p>
+     * 
+     * Will not throw on failure but just log a warning.
+     * 
+     * @return {@code this}
+     * @since latest
+     */
+    private DocumentBuilder addAutoHyphenation() {
+        POIXMLDocumentPart part = null;
+        for (int i = 0; i < this.document.getRelations().size(); i++) {
+            if (part instanceof XWPFSettings) {
+                part = this.document.getRelations().get(i);
+                break;
+            }
+        }
+
+        // case: failed to find settings
+        if (part == null) {
+            log.warn("Failed to add auto hyphenation. 'part' xwpfSettings could not be found in current document relations");
+            return this;
+        }
+
+        try {
+            XWPFSettings settings = (XWPFSettings) part;
+
+            // get settings.ctSettings awkwardly because there's not getter for some reason
+            Field _ctSettings = XWPFSettings.class.getDeclaredField("ctSettings"); 
+            _ctSettings.setAccessible(true); 
+            CTSettings ctSettings = (CTSettings) _ctSettings.get(settings);
+
+            ctSettings.addNewAutoHyphenation();
+
+        } catch (IllegalArgumentException | IllegalAccessException | NoSuchFieldException | SecurityException | NullPointerException e) {
+            log.warn("Failed to add auto hyphenation:");
+            e.printStackTrace();
+        }
 
         return this;
     }
@@ -386,30 +430,14 @@ public class DocumentBuilder {
         return this.document.createParagraph();
     }
 
-
     /**
      * Overloading {@link #addEmptyParagraph(XWPFParagraph, Style)} using newly created paragraph and default style.
      * 
      * @see Style
      */
     private XWPFParagraph addEmptyParagraph() {
-
         return addEmptyParagraph(this.document.createParagraph(), Style.getDefaultInstance());
     }
-
-
-    /**
-     * Overloading {@link #addEmptyParagraph(XWPFParagraph, Style)} using default style
-     * 
-     * @param paragraph to add text and styles to
-     * @return the altered paragraph
-     * @see Style
-     */
-    private XWPFParagraph addEmptyParagraph(XWPFParagraph paragraph) {
-
-        return addEmptyParagraph(paragraph, Style.getDefaultInstance());
-    }
-
 
     /**
      * Adds a "_" char in white color to first run sothat font size will be applied to that line. Follow up with a run whit just
@@ -488,7 +516,6 @@ public class DocumentBuilder {
      * @param text to add
      */
     private void addPlainTextToRun(XWPFRun run, String text) {
-
         String[] textArr = text.split(TAB_SYMBOL);
 
         for (int i = 0; i < textArr.length; i++) {
@@ -513,7 +540,6 @@ public class DocumentBuilder {
      * @see Style
      */
     void applyStyle(XWPFParagraph paragraph, Style style) {
-
         if (paragraph == null || style == null)
             return;
 
@@ -551,7 +577,6 @@ public class DocumentBuilder {
      * @param fontSize to use for size calculation
      */
     private void setTabStopsByFontSize(XWPFParagraph paragraph, int fontSize) {
-
         for (int i = 0; i < 17; i++) {
             CTTabStop tabStop = paragraph.getCTP().getPPr().addNewTabs().addNewTab();
             tabStop.setPos(BigInteger.valueOf((i + 1) * 36 * fontSize));
@@ -656,7 +681,6 @@ public class DocumentBuilder {
      * @param paragraph to pass the {@link CTSectPr} to
      */
     private DocumentBuilder separateSection(XWPFParagraph paragraph) {
-
         if (paragraph == null)  
             return this;
 

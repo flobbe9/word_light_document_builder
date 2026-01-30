@@ -7,10 +7,10 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 import de.word_light.document_builder.utils.Utils;
-import lombok.extern.log4j.Log4j2;
+import lombok.extern.slf4j.Slf4j;
 
 @SpringBootTest
-@Log4j2
+@Slf4j
 class DocumentBuilderApplicationTest {
 
     @BeforeAll
