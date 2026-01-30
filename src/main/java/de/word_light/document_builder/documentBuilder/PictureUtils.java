@@ -1,10 +1,10 @@
 package de.word_light.document_builder.documentBuilder;
 
+import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
 import java.util.Map;
-import java.awt.image.BufferedImage;
 
 import javax.imageio.ImageIO;
 
@@ -41,10 +41,8 @@ public class PictureUtils {
 
 
     public PictureUtils(Map<String, byte[]> pictures) {
-
         this.pictures = pictures;
     }
-
 
     /**
      * Adds picture to given {@link XWPFRun} if {@code fileName} is found in {@link #pictures} list. 
@@ -59,6 +57,11 @@ public class PictureUtils {
      * @param pictureType format of the picture
      */
     void addPicture(XWPFRun run, String fileName) {
+        // case: no pictures uploaded
+        if (this.pictures == null || this.pictures.isEmpty()) {
+            log.warn("Did not add pictures. 'pictures' list is either null or empty.");
+            return;
+        }
 
         // remove ${} braces
         fileName = getRawPictureName(fileName);
@@ -69,12 +72,6 @@ public class PictureUtils {
         if (pictureType == null)
             throw new ApiException("Did not add pictures. " + fileName + " is not of a valid picture type.");
         
-        // case: no pictures uploaded
-        if (this.pictures == null || this.pictures.isEmpty()) {
-            log.warn("Did not add pictures. 'pictures' list is either null or empty.");
-            return;
-        }
-        
         File picture = Utils.byteArrayToFile(this.pictures.get(fileName), fileName);
         
         // add picture
@@ -83,11 +80,13 @@ public class PictureUtils {
             // for dimensions
             BufferedImage bimg = ImageIO.read(picture);
 
-            run.addPicture(fis, 
-                           pictureType.ordinal(),
-                           fileName, 
-                           dxaToEMUs(bimg.getWidth()),
-                           dxaToEMUs(bimg.getHeight()));
+            run.addPicture(
+                fis, 
+                pictureType.ordinal(),
+                fileName, 
+                dxaToEMUs(bimg.getWidth()),
+                dxaToEMUs(bimg.getHeight())
+            );
 
         } catch (Exception e) {
             throw new ApiException("Failed to add picture.", e);
@@ -148,8 +147,8 @@ public class PictureUtils {
      * @param centimeters to convert
      * @return EMUs as int
      */
+    @SuppressWarnings("unused") // keept this just in case
     private int cmToEMUs(double centimeters) {
-
         return (int) Math.round(EMU_PER_CENTIMETER * centimeters);
     }
 
@@ -161,7 +160,6 @@ public class PictureUtils {
      * @return EMUs as int
      */
     private int dxaToEMUs(double dxa) {
-
         return (int) Math.round(Units.EMU_PER_DXA * dxa) * 2;
     }
 
