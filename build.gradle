@@ -36,8 +36,8 @@ dependencies {
 	implementation 'com.documents4j:documents4j-transformer-msoffice-word:1.1.12'
 	implementation 'com.documents4j:documents4j-local:1.1.12'
 
-    // openAPI
-    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.2.0'
+    // swagger
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.0'
 
     // docxBuilder
 	implementation 'fr.opensagres.xdocreport:fr.opensagres.poi.xwpf.converter.pdf:2.0.4'

@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.extern.log4j.Log4j2;
 
 
 /**
@@ -17,6 +18,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 @RequestMapping("/")
 @RestController
 @Tag(name = "Root endpoints")
+@Log4j2
 public class RootController {
 
     @Value("${custom.version}")
