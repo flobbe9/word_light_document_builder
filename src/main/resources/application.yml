@@ -52,3 +52,6 @@ logging:
         de:
             word_light:
                 document_builder: ${LOG_LEVEL}
+            
+custom:
+    version: 0.1.1

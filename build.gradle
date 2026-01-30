@@ -5,7 +5,8 @@ plugins {
 }
 
 group = 'de.word_light'
-version = '0.1.1'
+// see application.yml
+version = 'SNAPSHOT-0.0.1'
 
 java {
 	toolchain {
