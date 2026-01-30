@@ -16,7 +16,7 @@ services:
       - SPRING_JPA_HIBERNATE_DDL_AUTO=${SPRING_JPA_HIBERNATE_DDL_AUTO}
   
   db:
-    image: mysql
+    image: mariadb:11.8.5
     container_name: db
     ports:
         - ${DB_PORT}:${DB_PORT}

@@ -28,12 +28,11 @@ spring:
 
     ### DB
     datasource:
-        url: jdbc:mysql://localhost:${DB_PORT}/${DB_NAME}
+        url: jdbc:mariadb://localhost:${DB_PORT}/${DB_NAME}
         # url: jdbc:h2:mem:${DB_NAME}.db
         username: ${SPRING_DATASOURCE_USERNAME}
         password: ${SPRING_DATASOURCE_PASSWORD}
     jpa:
-        database-platform: org.hibernate.dialect.MySQLDialect
         # database-platform: org.hibernate.dialect.H2Dialect
         hibernate:
             ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO}
