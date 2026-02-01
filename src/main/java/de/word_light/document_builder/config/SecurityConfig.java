@@ -38,28 +38,22 @@ public class SecurityConfig {
 
     @PostConstruct
     void init() {
-
         log.info("Configuring api security...");
     }
 
-    
     @Bean
     SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        http.csrf(csrf -> csrf.disable());
         
-        // enable csrf in prod only
-        if (!this.ENV.equalsIgnoreCase("prod"))
-            http.csrf(csrf -> csrf.disable());
-        
-        // routes
         http.authorizeHttpRequests(request -> request
-                .anyRequest()
-                .permitAll())
-            .cors(cors -> cors
+            .anyRequest()
+            .permitAll());
+
+        http.cors(cors -> cors
                 .configurationSource(corsConfig()));
 
         return http.build();
     }
-
 
     /**
      * Configure cors.
