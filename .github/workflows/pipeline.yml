@@ -14,16 +14,17 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
       - name: Setup JDK
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v5
         with:
           distribution: "temurin"
-          java-version: "17"
-      - name: Start db
-        run: docker-compose -f 'docker-compose.db.yml' up -d
-      - run: gradle clean build
+          java-version: "21"
+      - name: Make gradle wrapper executable
+        run: chmod +x ./gradlew
+      - run: ./gradlew clean build
 
+  # TODO: clean this up when used again
   push_to_Dockerhub:
     # NOTE: ${{}} syntax does not work here
     if: (github.head_ref || github.ref_name) == 'main'
