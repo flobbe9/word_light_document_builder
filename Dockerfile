@@ -31,4 +31,4 @@ COPY --from=0 ${DOCKER_WORK_DIR}/.env ./.env
 RUN apk update;
 RUN apk add libreoffice;
 
-ENTRYPOINT [ "java", "-jar", "${JAR_FILE_NAME}" ]
+ENTRYPOINT [ "/bin/sh", "-c", "exec java -jar ${JAR_FILE_NAME}" ]
