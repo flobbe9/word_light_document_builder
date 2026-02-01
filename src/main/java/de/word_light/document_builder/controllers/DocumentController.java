@@ -1,16 +1,11 @@
 package de.word_light.document_builder.controllers;
 
-import static de.word_light.document_builder.utils.Utils.PICTURES_FOLDER;
-import static de.word_light.document_builder.utils.Utils.prependSlash;
 import static org.springframework.http.HttpStatus.NOT_IMPLEMENTED;
 import static org.springframework.http.HttpStatus.OK;
 import static org.springframework.http.HttpStatus.UNPROCESSABLE_ENTITY;
 
-import java.io.File;
-import java.io.FileOutputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
-import java.io.OutputStream;
-import java.nio.file.Files;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -19,9 +14,7 @@ import org.springframework.boot.info.OsInfo;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -79,7 +72,7 @@ public class DocumentController {
      * @param wrapper to use for downloaded file
      * @return {@link StreamingResponseBody} of file with correct headers for download
      */
-    @PostMapping(path = "/buildAndDownload", produces = {"application/octet-stream", "application/json"})
+    @PostMapping(path = "/buildAndDownload", produces = {MediaType.APPLICATION_OCTET_STREAM_VALUE, MediaType.APPLICATION_JSON_VALUE})
     @Operation(summary = "Write given wrapper to .docx, optionally convert to pdf and then download the file")
     public ResponseEntity<StreamingResponseBody> buildAndDownload(
         @RequestParam("pdf") Optional<Boolean> pdf,
@@ -91,34 +84,32 @@ public class DocumentController {
         this.documentWrapper = wrapper;
 
         // build docx
-        AtomicReference<File> file = new AtomicReference<>(buildAndWriteDocument());
+        AtomicReference<ByteArrayOutputStream> bos = new AtomicReference<>(buildAndWriteDocument2());
 
-        // case: pdf
-        if (pdf.orElse(false))
-            file.set(convertDocxToPdf(file.get()));
+        // convert to pdf possibly
+        boolean isPdf = pdf.orElse(false);
+        if (isPdf)
+            bos.set(convertDocxToPdf(bos.get()));
+        
+        String fileName = this.documentWrapper.getFileName();
+        if (isPdf)
+            fileName = fileName.replace(".docx", ".pdf");
 
-        log.info("downloading file {}", file.get().getPath());
+        log.info("Downloading {}", fileName);
 
         try {
             return ResponseEntity.ok()
-                .headers(getDownloadHeaders(file.get().getName()))
-                .contentLength(file.get().length())
-                .contentType(MediaType.parseMediaType("application/octet-stream"))
+                .headers(getDownloadHeaders(fileName))
+                .contentLength(bos.get().size())
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
                 .body(os -> {
-                    try {
-                        Files.copy(file.get().toPath(), os);
-
-                    } finally {
-                        file.get().delete();
-                        this.documentWrapper.getPictures().clear();
-                    }
+                    bos.get().writeTo(os);
                 });
 
         } finally {
             log.info("Download finished");
         }
     }
-
 
     /**
      * Upload a {@link MultipartFile} file and add it to {@code this.documentWrapper}.
@@ -137,53 +128,24 @@ public class DocumentController {
         if (PictureUtils.getPictureType(fileName) == null) 
             throw new ApiException(UNPROCESSABLE_ENTITY, "Failed to upload picture. File " + fileName + " is not recognized as picture.");
 
-        String completeFileName = PICTURES_FOLDER + prependSlash(fileName);
-        try (OutputStream os = new FileOutputStream(completeFileName);
-             InputStream is = picture.getInputStream()) {
-            
-            // write to file
-            os.write(is.readAllBytes());
+        try (InputStream is = picture.getInputStream()) {
+            this.documentWrapper.getPictures().put(fileName, is.readAllBytes());
 
-            // check file exists
-            File uploadedFile = new File(completeFileName);
-            if (!uploadedFile.exists()) 
-                throw new ApiException("Failed to write stream to file.");
-
-            // updated document
-            this.documentWrapper.getPictures().put(fileName, Utils.fileToByteArray(uploadedFile));
+            log.info("Upload finished");
 
         } catch (Exception e) {
             throw new ApiException("Failed to upload picture.", e);
-
-        } finally {
-            // clean up
-            Utils.clearFolderByFileName(PICTURES_FOLDER, fileName);
-            
-            log.info("Upload finished");
         }
 
         return ApiExceptionHandler.returnPrettySuccess(OK);
     }
 
-
     /**
-     * Extracts csrf token from session of given http request.
+     * Build document with {@code this.documentWrapper} and write to stream
      * 
-     * @return csrf token from request header or {@code ""} if null
+     * @return generated .docx outputStream
      */
-    @GetMapping("/getCsrfToken")
-    @Operation(summary = "Extracts csrf token from session of given http request and returns token string or '' if token is null.")
-    public String getCsrfToken(CsrfToken csrfToken) {
-
-        return csrfToken == null ? "" : csrfToken.getToken();
-    }
-
-    /**
-     * Build document with {@code this.documentWrapper} and write to file
-     * 
-     * @return generated .docx file
-     */
-    private File buildAndWriteDocument() {
+    private ByteArrayOutputStream buildAndWriteDocument2() {
         DocumentBuilder documentBuilder = new DocumentBuilder(
             this.documentWrapper.getContent(), 
             this.documentWrapper.getFileName(), 
@@ -194,8 +156,7 @@ public class DocumentController {
             this.documentWrapper.getTableConfigs()
         );
         
-        // build
-        return documentBuilder.build().writeDocxFile();
+        return documentBuilder.build().writeDocx();
     }
 
     /**
@@ -203,14 +164,12 @@ public class DocumentController {
      *  
      * @param docxFile ending on '.docx' to convert to '.pdf'
      */
-    private File convertDocxToPdf(File docxFile) {
-        String pdfFileName = docxFile.getName();
-
+    private ByteArrayOutputStream convertDocxToPdf(ByteArrayOutputStream docxOs) {
         if (Utils.isWindowsOs()) {
-            return DocumentBuilder.docxToPdfDocuments4j(docxFile, pdfFileName);
+            return DocumentBuilder.docxToPdfDocuments4j(docxOs);
 
         } else if (Utils.isLinuxOs())
-            return DocumentBuilder.docxToPdfLibreOffice(docxFile, pdfFileName);
+            return DocumentBuilder.docxToPdfLibreOffice(docxOs);
 
         throw new ApiException(NOT_IMPLEMENTED, "No pdf converter implemented for current OS '%s'".formatted(new OsInfo().getName()));
     }

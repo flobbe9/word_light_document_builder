@@ -1,18 +1,16 @@
 package de.word_light.document_builder.documentBuilder;
 
-import static de.word_light.document_builder.utils.Utils.STATIC_FOLDER;
-import static de.word_light.document_builder.utils.Utils.RESOURCE_FOLDER;
-import static de.word_light.document_builder.utils.Utils.DOCX_FOLDER;
-import static de.word_light.document_builder.utils.Utils.prependSlash;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.BufferedInputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -25,19 +23,16 @@ import org.apache.poi.xwpf.usermodel.UnderlinePatterns;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.apache.poi.xwpf.usermodel.XWPFParagraph;
 import org.apache.poi.xwpf.usermodel.XWPFRun;
-import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.MethodOrderer.OrderAnnotation;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
-import org.junit.jupiter.api.TestMethodOrder;
-import org.junit.jupiter.api.MethodOrderer.OrderAnnotation;
 import org.junit.jupiter.api.TestInstance.Lifecycle;
+import org.junit.jupiter.api.TestMethodOrder;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTPageMar;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTSectPr;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.STPageOrientation;
-import org.springframework.mock.web.MockHttpServletRequest;
-import org.springframework.web.context.request.RequestContextHolder;
-import org.springframework.web.context.request.ServletRequestAttributes;
 
 import de.word_light.document_builder.entites.documentParts.BasicParagraph;
 import de.word_light.document_builder.entites.documentParts.TableConfig;
@@ -61,7 +56,6 @@ public class DocumentBuilderTest {
 
     private String testDocxFileName;
 
-    private String docxFileName;
     private boolean landscape;
     
     private Style style;
@@ -88,24 +82,33 @@ public class DocumentBuilderTest {
 
     private DocumentBuilder documentBuilder;
 
+    @BeforeAll
+    void beforeAll() {
+        // TODO: only do this in before each if picture is modfied somewhere
+        this.testPictureName = "test.png";
+        try (FileInputStream fis = new FileInputStream(new File(TEST_RESOURCE_FOLDER + Utils.prependSlash(testPictureName)));
+            BufferedInputStream bis = new BufferedInputStream(fis)) {
+            this.pictures.put(testPictureName, bis.readAllBytes());
+
+        } catch (IOException e) {
+            throw new IllegalStateException(e);
+        }
+        this.pictureUtils = new PictureUtils(this.pictures);
+    }
 
     @BeforeEach
     void setup() {
-        
-        // picture
-        this.testPictureName = "test.png";
-        this.pictures.put(this.testPictureName, Utils.fileToByteArray(new File(TEST_RESOURCE_FOLDER + Utils.prependSlash(testPictureName))));
-        this.pictureUtils = new PictureUtils(this.pictures);
-
         // content
-        this.style = new Style(11, 
-                                    "times new roman", 
-                                    "2B01FF", // blue
-                                    true, 
-                                    true, 
-                                    true,
-                                    ParagraphAlignment.CENTER, 
-                                    null);        
+        this.style = new Style(
+            11, 
+            "times new roman", 
+            "2B01FF", // blue
+            true, 
+            true, 
+            true,
+            ParagraphAlignment.CENTER, 
+            null
+        );        
         this.header = new BasicParagraph("This is the header", this.style);
         this.title = new BasicParagraph("This is the title", this.style);
         this.tableCell = new BasicParagraph("This is a table cell", this.style);
@@ -122,10 +125,9 @@ public class DocumentBuilderTest {
         this.tableConfigs.add(new TableConfig(this.numTableColumns, this.numRows, this.startIndex));
         
         // document
-        this.testDocxFileName = "test/test.docx";
+        this.testDocxFileName = getClass().getResource("/static/test/test.docx").getFile();
         this.landscape = true;
         this.documentBuilder = new DocumentBuilder(this.content, "temp.docx", this.numColumns, this.numSingleColumnLines, this.landscape, this.pictures, this.tableConfigs);
-        this.docxFileName = this.documentBuilder.getDocxFileName();
         this.document = this.documentBuilder.getDocument();
         this.documentBuilder.setPictureUtils(this.pictureUtils);
     }
@@ -137,9 +139,6 @@ public class DocumentBuilderTest {
 
         // should have no paragraphs
         assertTrue(this.document.getParagraphs().size() == 0);
-
-        // file should not exist
-        assertFalse(new File(RESOURCE_FOLDER + "/" + this.docxFileName).exists());
 
         this.documentBuilder.build();
 
@@ -155,6 +154,9 @@ public class DocumentBuilderTest {
 
         // check orientation
         assertEquals(this.landscape ? STPageOrientation.LANDSCAPE : STPageOrientation.PORTRAIT, this.documentBuilder.getPgSz().getOrient());
+
+        // check auto hyphenation added
+        assertTrue(this.documentBuilder.getDocumentCtSettings().toString().contains("<autoHyphenation"));
     }
 
 
@@ -556,61 +558,21 @@ public class DocumentBuilderTest {
 
 // ---------- readDocxFile()
     @Test
-    void readDocxFile_shouldWorkWithFalsyInput() {
-        
-        // mock request context for ApiExceptionHandler
-        MockHttpServletRequest request = new MockHttpServletRequest();
-        RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
-
-        XWPFDocument document = this.documentBuilder.readDocxFile("some non existing file");
-
-        // expect clean document
-        assertEquals(0, document.getParagraphs().size());
+    void readDocxFile_shouldThrowIfArgNull() {
+        assertThrows(IllegalArgumentException.class, () -> this.documentBuilder.readDocxFile(null));
     }
 
 
     @Test
-    void readDocxFile_shouldWorkWithTruthyInput() {
+    void readDocxFile_shouldWorkWithValidArg() {
+        try (InputStream fis = new FileInputStream(this.testDocxFileName);
+            InputStream bis = new BufferedInputStream(fis)) {
+            XWPFDocument document = this.documentBuilder.readDocxFile(bis);
 
-        XWPFDocument document = this.documentBuilder.readDocxFile(STATIC_FOLDER + prependSlash(this.testDocxFileName));
-
-        // expect clean document
-        assertEquals(0, document.getParagraphs().size());
-    }
-
-
-//----------- writeDocxFile()
-    @Test
-    void writeToDocxFile_fileNameWithoutSlash_shouldBeTrue() {
-
-        // file should not exist yet
-        assertFalse(new File(DOCX_FOLDER + "/" + this.docxFileName).exists());
-
-        // should return true
-        this.documentBuilder.writeDocxFile();
-
-        // file should exist
-        assertTrue(new File(DOCX_FOLDER + "/" + this.docxFileName).exists());
-    }
-
-
-    @Test
-    void writeToDocxFile_fileNameWithSlash_shouldBeTrue() {
-
-        // file should not exist yet
-        assertFalse(new File(DOCX_FOLDER + "/" + this.docxFileName).exists());
-
-        this.documentBuilder.setDocxFileName("/" + this.docxFileName);
-        this.documentBuilder.writeDocxFile();
-
-        // file should exist
-        assertTrue(new File(DOCX_FOLDER + "/" + this.docxFileName).exists());
-    }
-
-
-    @AfterEach
-    void cleanUp() throws IOException {
-
-        Utils.clearFolder(DOCX_FOLDER, null);
+            // expect clean document, test file is empty
+            assertEquals(0, document.getParagraphs().size());
+        } catch (IOException e) {
+            throw new IllegalStateException(e);
+        }
     }
 }

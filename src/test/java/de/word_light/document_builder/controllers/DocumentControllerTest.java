@@ -1,8 +1,5 @@
 package de.word_light.document_builder.controllers;
 
-import static de.word_light.document_builder.utils.Utils.DOCX_FOLDER;
-import static de.word_light.document_builder.utils.Utils.PDF_FOLDER;
-import static de.word_light.document_builder.utils.Utils.PICTURES_FOLDER;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.util.ArrayList;
@@ -10,7 +7,6 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.poi.xwpf.usermodel.ParagraphAlignment;
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.MethodOrderer.OrderAnnotation;
 import org.junit.jupiter.api.Order;
@@ -32,7 +28,6 @@ import de.word_light.document_builder.entites.documentParts.DocumentWrapper;
 import de.word_light.document_builder.entites.documentParts.TableConfig;
 import de.word_light.document_builder.entites.documentParts.style.Style;
 import de.word_light.document_builder.utils.TestUtils;
-import de.word_light.document_builder.utils.Utils;
 
 
 /**
@@ -140,12 +135,5 @@ public class DocumentControllerTest {
         String jsonResponse = response.getResponse().getContentAsString();
 
         TestUtils.checkJsonApiExceptionFormat(jsonResponse, HttpStatus.BAD_REQUEST);
-    }
-
-    @AfterAll
-    void cleanUp() {
-        Utils.clearFolderByFileName(DOCX_FOLDER);
-        Utils.clearFolderByFileName(PDF_FOLDER);
-        Utils.clearFolderByFileName(PICTURES_FOLDER);
     }
 }

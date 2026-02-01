@@ -1,8 +1,7 @@
 package de.word_light.document_builder.documentBuilder;
 
 import java.awt.image.BufferedImage;
-import java.io.File;
-import java.io.FileInputStream;
+import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.util.Map;
 
@@ -14,7 +13,6 @@ import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.apache.poi.xwpf.usermodel.XWPFRun;
 
 import de.word_light.document_builder.exception.ApiException;
-import de.word_light.document_builder.utils.Utils;
 import io.micrometer.common.util.StringUtils;
 import lombok.Getter;
 import lombok.Setter;
@@ -66,22 +64,18 @@ public class PictureUtils {
         // remove ${} braces
         fileName = getRawPictureName(fileName);
 
+        // validate
         PictureType pictureType = getPictureType(fileName);
-
-        // case: invalid picture format
         if (pictureType == null)
             throw new ApiException("Did not add pictures. " + fileName + " is not of a valid picture type.");
         
-        File picture = Utils.byteArrayToFile(this.pictures.get(fileName), fileName);
-        
-        // add picture
-        try (InputStream fis = new FileInputStream(picture)) {
-
-            // for dimensions
-            BufferedImage bimg = ImageIO.read(picture);
+        // add to run
+        byte[] pictureBytes = this.pictures.get(fileName);
+        try (InputStream bis = new ByteArrayInputStream(pictureBytes)) {
+            BufferedImage bimg = ImageIO.read(bis);
 
             run.addPicture(
-                fis, 
+                bis, 
                 pictureType.ordinal(),
                 fileName, 
                 dxaToEMUs(bimg.getWidth()),
@@ -90,13 +84,8 @@ public class PictureUtils {
 
         } catch (Exception e) {
             throw new ApiException("Failed to add picture.", e);
-        
-        } finally {
-            if (picture != null)
-                picture.delete();
         }
     }
-
 
     /**
      * Checks if given string ends on a picture extension like ".jpg" or ".png" and returns the {@link PictureType}.<p>
@@ -107,20 +96,17 @@ public class PictureUtils {
      * @return the pictureType if fileName ends on an extension from {@link PictureType} or null
      */
     public static PictureType getPictureType(String fileName) {
-
         if (fileName == null)
             return null;
 
         // check file extension for matching picture extension
         for (PictureType pictureType : PictureType.values()) {
-
             if (fileName.toLowerCase().endsWith(pictureType.getExtension()))
                 return pictureType;
         };
 
         return null;
     }
-
 
     /**
      * Determine if given text should be treated as file name for a picture in a document.
@@ -129,7 +115,6 @@ public class PictureUtils {
      * @return true if text is formatted like: "${someFileName.someValidPictureSuffix}", i.e. "${beautifulView.png}".
      */
     public static boolean isPicture(String text) {
-
         // case: null or blank
         if (StringUtils.isBlank(text))
             return false;
@@ -138,7 +123,6 @@ public class PictureUtils {
 
         return hasBraces && getPictureType(getRawPictureName(text)) != null;
     }
-
 
     /**
      * Converts centimeters to EMUs. Rounds up from .5 on (e.g. 0.5 = 1 but 0.4 = 0).
@@ -162,7 +146,6 @@ public class PictureUtils {
     private int dxaToEMUs(double dxa) {
         return (int) Math.round(Units.EMU_PER_DXA * dxa) * 2;
     }
-
     
     /**
      * @param pictureName unaltered text from basicParagraph that is expected to be formatted like {@code "${somePictureName.png}"}
@@ -172,7 +155,6 @@ public class PictureUtils {
      *         Return {@code null} if {@code pictureName} is {@code null} or too short
      */
     private static String getRawPictureName(String pictureName) {
-
         try {
             // case: not formatted correctly, assuming is raw already
             if (!pictureName.startsWith("${") || !pictureName.endsWith("}"))

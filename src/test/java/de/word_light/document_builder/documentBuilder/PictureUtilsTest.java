@@ -1,14 +1,15 @@
 package de.word_light.document_builder.documentBuilder;
 
 import static de.word_light.document_builder.documentBuilder.DocumentBuilderTest.TEST_RESOURCE_FOLDER;
-import static de.word_light.document_builder.utils.Utils.PICTURES_FOLDER;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.BufferedInputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
@@ -16,7 +17,7 @@ import java.util.Map;
 import org.apache.poi.common.usermodel.PictureType;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.apache.poi.xwpf.usermodel.XWPFRun;
-import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -44,18 +45,26 @@ public class PictureUtilsTest {
 
     private Map<String, byte[]> pictures = new HashMap<>();
 
-
-    @BeforeEach
-    void init() {
-
-        // initialize fields
-        this.document = new XWPFDocument();
-        this.run = document.createParagraph().createRun();
+    @BeforeAll
+    void beforeAll() {
         this.testPictureName = "test.png";
-        this.pictures.put(this.testPictureName, Utils.fileToByteArray(new File(TEST_RESOURCE_FOLDER + Utils.prependSlash(testPictureName))));
+        try (FileInputStream fis = new FileInputStream(new File(TEST_RESOURCE_FOLDER + Utils.prependSlash(testPictureName)));
+            BufferedInputStream bis = new BufferedInputStream(fis)) {
+            this.pictures.put(testPictureName, bis.readAllBytes());
+
+        } catch (IOException e) {
+            throw new IllegalStateException(e);
+        }
         this.pictureUtils = new PictureUtils(this.pictures);
     }
 
+    @BeforeEach
+    void init() {
+        // initialize fields
+        this.testPictureName = "test.png";
+        this.document = new XWPFDocument();
+        this.run = document.createParagraph().createRun();
+    }
 
 //------------ addPicture()
     @Test
@@ -155,8 +164,7 @@ public class PictureUtilsTest {
 
     @Test
     void getPictureType_shouldReturnCorrectType() {
-
-        assertEquals(PictureType.PNG, PictureUtils.getPictureType(testPictureName));
+        assertEquals(PictureType.PNG, PictureUtils.getPictureType(this.testPictureName));
 
         assertEquals(PictureType.JPEG, PictureUtils.getPictureType("test.jpg"));
     }
@@ -204,13 +212,5 @@ public class PictureUtilsTest {
         assertFalse(PictureUtils.isPicture(null));
 
         assertFalse(PictureUtils.isPicture(""));
-    }
-
-
-    @AfterAll
-    void cleanUp() throws IOException {
-
-        this.document.close();
-        Utils.clearFolder(PICTURES_FOLDER, null);
     }
 }

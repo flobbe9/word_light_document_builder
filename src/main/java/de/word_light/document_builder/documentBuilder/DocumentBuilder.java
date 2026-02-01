@@ -1,12 +1,12 @@
 package de.word_light.document_builder.documentBuilder;
 
-import static de.word_light.document_builder.utils.Utils.DOCX_FOLDER;
-import static de.word_light.document_builder.utils.Utils.PDF_FOLDER;
 import static de.word_light.document_builder.utils.Utils.assertArgsNotNullAndNotBlankOrThrow;
 import static de.word_light.document_builder.utils.Utils.awaitOrThrow;
 import static de.word_light.document_builder.utils.Utils.isLinuxOs;
-import static de.word_light.document_builder.utils.Utils.prependSlash;
 
+import java.io.BufferedInputStream;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -17,6 +17,7 @@ import java.lang.reflect.Field;
 import java.math.BigInteger;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.poi.common.usermodel.PictureType;
@@ -102,7 +103,7 @@ public class DocumentBuilder {
     public static final int NO_LINE_SPACE = 1;
 
     /** declares that a tab should be added here instead of the actual text */
-    public static final String TAB_SYMBOL = "\\t";
+    public static final String TAB_SYMBOL = "\t";
 
     private List<BasicParagraph> content;
     
@@ -280,6 +281,50 @@ public class DocumentBuilder {
 
         return this;
     }
+    
+    /**
+     * Get global document settings object. 
+     * 
+     * @return {@null} if {@link #document} is setup unexpectedly
+     */
+    private XWPFSettings getDocumentSettings() {
+        POIXMLDocumentPart part = this.document.getRelations()
+            .stream()
+            .filter(relation -> relation instanceof XWPFSettings)
+            .findFirst()
+            .orElse(null);
+
+        // case: failed to find settings
+        if (part == null)
+            log.debug("Failed to get document settings. 'part' xwpfSettings could not be found in current document's relations");
+
+        return (XWPFSettings) part;
+    }
+
+    /**
+     * Get global ct document settings object. 
+     * 
+     * @return {@null} if {@link #document} is setup unexpectedly, e.g. if it doesn't have xwpfSettings
+     * @see #getDocumentSettings()
+     */
+    protected CTSettings getDocumentCtSettings() {
+        XWPFSettings xwpfSettings = getDocumentSettings();
+        if (xwpfSettings == null)
+            return null;
+
+        try {
+            // get settings.ctSettings awkwardly because there's not getter for some reason
+            Field _ctSettings = XWPFSettings.class.getDeclaredField("ctSettings"); 
+            _ctSettings.setAccessible(true); 
+
+            return (CTSettings) _ctSettings.get(xwpfSettings);
+
+        } catch (IllegalArgumentException | IllegalAccessException | NoSuchFieldException | SecurityException | NullPointerException e) {
+            log.warn("Failed to get document ctSettings:");
+            e.printStackTrace();
+            return null;
+        }
+    }
 
     /**
      * Make sure that hyphens are configured automatically by word. This will make paragraph justification (align "BOTH") look better.<p>
@@ -292,32 +337,12 @@ public class DocumentBuilder {
      * @since latest
      */
     private DocumentBuilder addAutoHyphenation() {
-        POIXMLDocumentPart part = this.document.getRelations()
-            .stream()
-            .filter(relation -> relation instanceof XWPFSettings)
-            .findFirst()
-            .orElse(null);
+        CTSettings ctSettings = getDocumentCtSettings();
 
-        // case: failed to find settings
-        if (part == null) {
-            log.warn("Failed to add auto hyphenation. 'part' xwpfSettings could not be found in current document relations");
-            return this;
-        }
-
-        try {
-            XWPFSettings settings = (XWPFSettings) part;
-
-            // get settings.ctSettings awkwardly because there's not getter for some reason
-            Field _ctSettings = XWPFSettings.class.getDeclaredField("ctSettings"); 
-            _ctSettings.setAccessible(true); 
-            CTSettings ctSettings = (CTSettings) _ctSettings.get(settings);
-
+        if (ctSettings == null)
+            log.warn("Failed to add auto hyphenation. 'ctSettings' could not be found in current document");
+        else
             ctSettings.addNewAutoHyphenation();
-
-        } catch (IllegalArgumentException | IllegalAccessException | NoSuchFieldException | SecurityException | NullPointerException e) {
-            log.warn("Failed to add auto hyphenation:");
-            e.printStackTrace();
-        }
 
         return this;
     }
@@ -696,11 +721,14 @@ public class DocumentBuilder {
      * @param fileName name and suffix of the .docx file
      * @return XWPFDocument of the file or an empty one in case of exception
      */
-    XWPFDocument readDocxFile(String fileName) {
+    // TODO: pass an input stream as arg instead, don't use files
+    XWPFDocument readDocxFile(InputStream docxIs) {
+        assertArgsNotNullAndNotBlankOrThrow(docxIs);
+
         log.info("Starting to read .docx file...");
 
         try {
-            XWPFDocument document = new XWPFDocument(new FileInputStream(fileName));
+            XWPFDocument document = new XWPFDocument(docxIs);
 
             // clean up document
             document.removeBodyElement(0);
@@ -714,107 +742,84 @@ public class DocumentBuilder {
         }
     }
 
-
     /**
-     * Writes the {@link XWPFDocument} to a .docx file. Checks if exists and stores it in {@link #DOCX_FOLDER}.
+     * Write {@link #document} to an outputstream and close it. 
      * 
-     * @return the .docx file
+     * @return
+     * @throws ApiException
      */
-    public File writeDocxFile() {
+    @NonNull
+    public ByteArrayOutputStream writeDocx() {
         log.info("Writing .docx file...");
 
-        String completeFileName = DOCX_FOLDER + prependSlash(this.docxFileName);
-
-        try (OutputStream os = new FileOutputStream(completeFileName)) {
-
-            this.document.write(os);
+        try (ByteArrayOutputStream bos = new ByteArrayOutputStream()) {
+            this.document.write(bos);
             this.document.close();
 
-            File docxFile = new File(completeFileName);
+            log.info("Finished writing .docx");
 
-            if (!docxFile.exists())
-                throw new ApiException("Failed to create document. 'docxFile' does not exist.");
-
-            log.info("Finished writing .docx file");
-
-            return docxFile;
+            return bos;
 
         } catch (IOException e) {
-            throw new ApiException("Failed to write .docx file.", e);
+            throw new ApiException("Failed to write .docx.", e);
         }
     }
 
 
     /**
-     * Convert any .docx file to .pdf file and store in {@link #PDF_FOLDER}.<p>
+     * Convert any .docx to .pdf.<p>
      * 
-     * @param docxInputStream inputStream of .docx file
-     * @param pdfFileName name and suffix of pdf file (no relative path, file is expected to be located inside {@link #PDF_FOLDER})
+     * Only works on windows machines with ms word installed. See {@link #docxToPdfLibreOffice(File, String)} for linux version
+     * 
+     * @param docxOs expected to have the docx content written to it
      * @return pdf file if conversion was successful
      * @throws ApiException
      */
-    public static File docxToPdfDocuments4j(InputStream docxInputStream, String pdfFileName) {
+    // TODO: double check that copying streams is not too memory expensive or computation heavy
+    @NonNull
+    public static ByteArrayOutputStream docxToPdfDocuments4j(ByteArrayOutputStream docxOs) {
         log.info("Converting .docx to .pdf...");
         log.debug("Using documents4j");
         
-        try (OutputStream os = new FileOutputStream(PDF_FOLDER + prependSlash(pdfFileName))) {
+        try (ByteArrayOutputStream bos = new ByteArrayOutputStream();
+            InputStream bis = new ByteArrayInputStream(docxOs.toByteArray())) {
             IConverter converter = LocalConverter.builder().build();
             
-            converter.convert(docxInputStream)
-                     .as(DocumentType.DOCX)
-                     .to(os)
-                     .as(DocumentType.PDF)
-                     .execute();
+            boolean success = converter
+                .convert(bis).as(DocumentType.DOCX)
+                .to(bos).as(DocumentType.PDF)
+                .execute();
 
             converter.shutDown();
 
-            return new File(PDF_FOLDER + prependSlash(pdfFileName));
+            if (!success)
+                log.error("Pdf converter did not complete with success.");
+
+            log.info("Finished converting .docx to .pdf");
+
+            return bos;
 
         } catch (Exception e) {
             throw new ApiException("Failed to convert .docx to .pdf.", e);
-            
-        } finally {
-            // remove .docx file
-            Utils.clearFolderByFileName(DOCX_FOLDER, pdfFileName);
-            log.info("Finished converting .docx to .pdf");
-        }
-    }
-
-
-    /**
-     * Overloading {@link #docxToPdfDocuments4j(InputStream, String)}.
-     * 
-     * @param docxFile
-     * @param pdfFileName
-     * @return
-     * @throws ApiException if docxFile cannot be found
-     */
-    public static File docxToPdfDocuments4j(File docxFile, String pdfFileName) {
-        try {
-            return docxToPdfDocuments4j(new FileInputStream(docxFile), pdfFileName);
-
-        } catch (IOException e) {
-            throw new ApiException("Failed to convert .docx to .pdf.", e);
         }
     }
 
     /**
-     * Convert given docx to pdf executing a libreoffice command. Depends on libreoffice beeing installed (apk update;apk add libreoffice;).<p>
+     * Convert given docx to pdf executing a libreoffice command. Only works on linux machines with libreoffice installed (apk update;apk add libreoffice;).<p>
      * 
      * NOTE: had these commands in mind as well: <p>
      * libreoffice --headless --infilter=76 --convert-to pdf document1.docx --outdir pdf1.pdf
      * libreoffice --headless env:UserInstallation=file:///tmp/LibreOffice_Conversion_root --convert-to pdf:writer_pdf_Export document1.docx --outdir pdf1.pdf
      * 
-     * @param docxFile
-     * @param pdfFileName
-     * @return an existing pdf file
+     * @param docxOs output stream which has the docx content written to it
+     * @return output stream
      * @throws IllegalArgumentException
      * @throws ApiException
      */
     @NonNull
     // TODO: not tested extensively (styles, tables, images etc)
-    public static File docxToPdfLibreOffice(@NonNull File docxFile, @Nullable String pdfFileName) {
-        assertArgsNotNullAndNotBlankOrThrow(docxFile);
+    public static ByteArrayOutputStream docxToPdfLibreOffice(@NonNull ByteArrayOutputStream docxOs) {
+        assertArgsNotNullAndNotBlankOrThrow(docxOs);
 
         log.info("Converting docx to pdf...");
         log.debug("Using libreoffice");
@@ -822,36 +827,42 @@ public class DocumentBuilder {
         if (!isLinuxOs())
             throw new IllegalArgumentException("Cannot convert pdfs using libreOffice on '%s' OS".formatted(new OsInfo().getName()));
 
-        // TODO: use regex constant
-        // if (!isDocxFile(docxFile.getName()))
-        //     throw new IllegalArgumentException("Can only convert '.docx' files to pdf, got: '%s'".formatted(docxFile.getName()));
-
-        try {
-            // generate pdf
-            Runtime.getRuntime().exec(new String[] {"libreoffice", "--headless", "--infilter=76", "--convert-to", "pdf", docxFile.getPath(), " --outdir ", PDF_FOLDER});
-            
-            // wait for pdf to be generated
-            String pdfFileNameAndPathLibreoffice = PDF_FOLDER + "/" + docxFile.getName().replace(".docx", ".pdf");
-            File pdfFileLibreoffice = new File(pdfFileNameAndPathLibreoffice);
-            log.debug("Convert {} to {}", docxFile.getPath(), pdfFileNameAndPathLibreoffice);
-            awaitOrThrow(() -> pdfFileLibreoffice.exists(), 20_000);
-
-            // prepare pdf file name
-            if (StringUtils.isBlank(pdfFileName))
-                pdfFileName = docxFile.getName();
-
-            String pdfFilePathAndName = PDF_FOLDER + "/" + pdfFileName;
-
-            if (!pdfFilePathAndName.endsWith(".pdf"))
-                pdfFilePathAndName += ".pdf";
-
-            log.debug("rename to {}", pdfFilePathAndName);
-            File pdfFile = new File(pdfFilePathAndName);
-            pdfFileLibreoffice.renameTo(pdfFile);
+        File tmpDir = Utils.getLinuxTmpDir();
+        String docxFullFilePath = "%s/%s.docx".formatted(tmpDir.getAbsolutePath(), UUID.randomUUID());
+        // pdf will have same name but without the ".docx" extension
+        String pdfFullFilePath = docxFullFilePath.replace(".docx", ".pdf");
         
-            return pdfFile;
+        try (OutputStream fos = new FileOutputStream(docxFullFilePath)) {
+            // write docx to file for libreoffice
+            docxOs.writeTo(fos);
+
+            // generate pdf
+            Runtime.getRuntime().exec(new String[] {"libreoffice", "--headless", "--infilter=76", "--convert-to", "pdf", docxFullFilePath, "--outdir", tmpDir.getAbsolutePath()});
+            
+            File pdfFileLibreoffice = new File(pdfFullFilePath);
+            
+            log.debug("Converting {} to {}...", docxFullFilePath, pdfFullFilePath);
+            awaitOrThrow(() -> pdfFileLibreoffice.exists(), 120_000); // wait 2min
+
+            // write to stream
+            try (ByteArrayOutputStream bos = new ByteArrayOutputStream();
+                FileInputStream fis = new FileInputStream(pdfFileLibreoffice);
+                InputStream bis = new BufferedInputStream(fis)) {
+                bos.write(bis.readAllBytes());
+                return bos;
+            }
+
         } catch (Exception e) {
             throw new IllegalStateException(e);
+
+        } finally {
+            log.debug("Finished docx to pdf conversion. Deleting tmp docx and pdf files...");
+
+            if (!new File(docxFullFilePath).delete())
+                log.warn("Failed to clean up {}", docxFullFilePath);
+
+            if (!new File(pdfFullFilePath).delete())
+                log.warn("Failed to clean up {}", pdfFullFilePath);
         }
     }
 }

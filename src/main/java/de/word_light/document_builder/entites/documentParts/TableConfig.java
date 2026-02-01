@@ -26,15 +26,18 @@ public class TableConfig extends AbstractEntity {
 
     @NotNull(message = "'numColumns' cannot be null.")
     @Min(value = 1, message = "'numColumns' has to be greater than equal 1.")
+    @Schema(example = "1")
     private Integer numColumns;
     
     @NotNull(message = "'numRows' cannot be null.")
     @Min(value = 1, message = "'numRows' has to be greater than equal 1.")
+    @Schema(example = "1")
     private Integer numRows;
     
     /** The index in content list with the first table element. */
     @NotNull(message = "'startIndex' cannot be null.")
     @Min(value = 0, message = "'startIndex' has to be greater than equal 0.")
+    @Schema(example = "0")
     private Integer startIndex;
 
 
@@ -46,7 +49,6 @@ public class TableConfig extends AbstractEntity {
     @AssertTrue(message = "Invalid 'tableConfig'. Not enough cells for content.")
     @Schema(hidden = true)
     public boolean isValid() {
-        
         return isTableBigEnough();
     }
 
@@ -56,7 +58,6 @@ public class TableConfig extends AbstractEntity {
      */
     @Schema(hidden = true)
     public int getEndIndex() {
-
         return this.startIndex + this.numColumns * this.numRows - 1;
     }
     

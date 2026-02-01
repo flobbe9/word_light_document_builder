@@ -23,8 +23,8 @@ public class RootController {
 
     @Value("${custom.version}")
     private String API_VERSION;
-    
-    
+
+
     @GetMapping("/version")
     @Operation(summary = "View api version.")
     public String getVersion() {

@@ -33,9 +33,11 @@ public class Style extends AbstractEntity {
     
     @NotNull(message = "'fontSize' cannot be null.")
     @Min(value = 8, message = "'fontSize' has to be greater than equal 8.")
+    @Schema(example = "11")
     private Integer fontSize;
 
     @NotEmpty(message = "'fontFamily' cannot be empty or null.")
+    @Schema(example = "Arial")
     private String fontFamily;
 
     @NotNull(message = "'color' cannot be null.")
