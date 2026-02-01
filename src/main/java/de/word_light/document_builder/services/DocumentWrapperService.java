@@ -2,7 +2,6 @@ package de.word_light.document_builder.services;
 
 import java.util.Map;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.validation.annotation.Validated;
 
@@ -22,12 +21,7 @@ import jakarta.validation.constraints.NotNull;
 @Service
 @Validated
 // TODO: add tests
-
 public class DocumentWrapperService extends AbstractService<DocumentWrapper, DocumentWrapperRepository> {
-
-    @Autowired
-    private DocumentWrapperRepository repository;
-    
 
     public byte[] getPictureByFileName(@NotBlank(message = "'fileName' cannot be blank or null") String fileName, @NotNull(message = "'documentId' cannot be null") Long documentId) {
 

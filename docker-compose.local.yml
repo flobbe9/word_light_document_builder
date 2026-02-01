@@ -5,10 +5,17 @@ services:
   api:
     # depends_on: # no longer depends on db, uses h2 in memory instead
     #   - db
-    build: .
+    build: 
+      context: .
+      args:
+        DOCKER_WORK_DIR: ${DOCKER_WORK_DIR}
     ports: 
-        - ${PORT}:${PORT}
+      - ${PORT}:${PORT}
+    # make System.getenv() work
+    env_file: ./.env
+
     # environment:
+      # LOG_LEVEL: TRACE
       # - SPRING_DATASOURCE_URL=jdbc:mysql://db:${DB_PORT}/${DB_NAME}
       # - SPRING_DATASOURCE_USERNAME=${SPRING_DATASOURCE_USERNAME}
       # - SPRING_DATASOURCE_PASSWORD=${SPRING_DATASOURCE_PASSWORD}
