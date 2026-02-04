@@ -84,7 +84,7 @@ public class DocumentController {
         this.documentWrapper = wrapper;
 
         // build docx
-        AtomicReference<ByteArrayOutputStream> bos = new AtomicReference<>(buildAndWriteDocument2());
+        AtomicReference<ByteArrayOutputStream> bos = new AtomicReference<>(buildAndWriteDocument());
 
         // convert to pdf possibly
         boolean isPdf = pdf.orElse(false);
@@ -145,7 +145,7 @@ public class DocumentController {
      * 
      * @return generated .docx outputStream
      */
-    private ByteArrayOutputStream buildAndWriteDocument2() {
+    private ByteArrayOutputStream buildAndWriteDocument() {
         DocumentBuilder documentBuilder = new DocumentBuilder(
             this.documentWrapper.getContent(), 
             this.documentWrapper.getFileName(), 

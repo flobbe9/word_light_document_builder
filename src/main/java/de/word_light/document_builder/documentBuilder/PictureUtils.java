@@ -74,6 +74,8 @@ public class PictureUtils {
         try (InputStream bis = new ByteArrayInputStream(pictureBytes)) {
             BufferedImage bimg = ImageIO.read(bis);
 
+            // reset the stream cursor since the stream has already been read by the buffered image
+            bis.reset();
             run.addPicture(
                 bis, 
                 pictureType.ordinal(),
