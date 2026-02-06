@@ -85,6 +85,20 @@ public class PictureUtils {
                 pxToEmu(bimg.getHeight())
             );
 
+            // lock aspect ratio
+            try {
+                run.getCTR()
+                    .getDrawingArray(0)
+                    .getInlineArray(0)
+                    .addNewCNvGraphicFramePr()
+                    .addNewGraphicFrameLocks()
+                    .setNoChangeAspect(true);
+
+            } catch (NullPointerException | IndexOutOfBoundsException e) {
+                log.warn("Failed to lock picture aspect ratio for file {}", fileName);
+                e.printStackTrace();
+            }
+
         } catch (Exception e) {
             throw new ApiException("Failed to add picture.", e);
         }
