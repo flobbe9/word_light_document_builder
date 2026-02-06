@@ -34,6 +34,7 @@ public class PictureUtils {
      * @see org.apache.poi.util.Units
      */
     public static final Integer EMU_PER_CENTIMETER = 360000;   
+    private static final int EMU_PER_INCH = 914_400;
      
     private Map<String, byte[]> pictures;
 
@@ -80,8 +81,8 @@ public class PictureUtils {
                 bis, 
                 pictureType.ordinal(),
                 fileName, 
-                dxaToEMUs(bimg.getWidth()),
-                dxaToEMUs(bimg.getHeight())
+                pxToEmu(bimg.getWidth()),
+                pxToEmu(bimg.getHeight())
             );
 
         } catch (Exception e) {
@@ -127,26 +128,29 @@ public class PictureUtils {
     }
 
     /**
-     * Converts centimeters to EMUs. Rounds up from .5 on (e.g. 0.5 = 1 but 0.4 = 0).
+     * Call {@link #pxToEmu(int, int)} assuming 96dpi.
      * 
-     * @see org.apache.poi.util.Units
-     * @param centimeters to convert
-     * @return EMUs as int
+     * @param px
+     * @return
      */
-    @SuppressWarnings("unused") // keept this just in case
-    private int cmToEMUs(double centimeters) {
-        return (int) Math.round(EMU_PER_CENTIMETER * centimeters);
+    private int pxToEmu(int px) {
+        return pxToEmu(px, Units.PIXEL_DPI);
     }
 
     /**
-     * I have no idea what unit this is, but it works, when multiplying by 2.
+     * Emu is a very small unit used in ms word.
      * 
-     * @see org.apache.poi.util.Units
-     * @param dxa to convert
-     * @return EMUs as int
+     * @param px to convert
+     * @param dpi of the image or container that's beeing measured
+     * @return emus
+     * @throws IllegalArgumentException if dpi is less than 1
+     * @see {@link Units}
      */
-    private int dxaToEMUs(double dxa) {
-        return (int) Math.round(Units.EMU_PER_DXA * dxa) * 2;
+    private int pxToEmu(int px, int dpi) {
+        if (dpi <= 0)
+            throw new IllegalArgumentException("'dpi' must be greater than 0");
+
+        return Math.round(px * (EMU_PER_INCH / dpi));
     }
     
     /**

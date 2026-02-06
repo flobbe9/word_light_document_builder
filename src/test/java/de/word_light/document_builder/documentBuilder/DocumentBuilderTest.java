@@ -84,7 +84,6 @@ public class DocumentBuilderTest {
 
     @BeforeAll
     void beforeAll() {
-        // TODO: only do this in before each if picture is modfied somewhere
         this.testPictureName = "test.png";
         try (FileInputStream fis = new FileInputStream(new File(TEST_RESOURCE_FOLDER + Utils.prependSlash(testPictureName)));
             BufferedInputStream bis = new BufferedInputStream(fis)) {
